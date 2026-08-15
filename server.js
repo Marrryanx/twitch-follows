@@ -68,62 +68,53 @@ async function getFollowing(req, res, usernameFromPath) {
 
   try {
     const follows = [];
-    let after = null;
-    let targetUser = null;
-    let totalCount = null;
 
-    while (follows.length < limit) {
-      const first = Math.min(100, limit - follows.length);
+    const first = Math.min(100, limit);
 
-      const result = await twitchGraphQL({
-        operationName: "ChannelFollows",
-        variables: {
-          limit: first,
-          login: username,
-          order: "DESC"
-        },
-        extensions: {
-          persistedQuery: {
-            version: 1,
-            sha256Hash: CHANNEL_FOLLOWS_HASH
-          }
+    const result = await twitchGraphQL({
+      operationName: "ChannelFollows",
+      variables: {
+        limit: first,
+        login: username,
+        order: "DESC"
+      },
+      extensions: {
+        persistedQuery: {
+          version: 1,
+          sha256Hash: CHANNEL_FOLLOWS_HASH
         }
-      });
+      }
+    });
 
-      const user = result?.data?.user;
-      if (!user) {
-        return res.status(404).json({
-          error: `Twitch user "${username}" was not found.`
+    const user = result?.data?.user;
+    if (!user) {
+      return res.status(404).json({
+        error: `Twitch user "${username}" was not found.`
+      });
+    }
+
+    const connection = user.follows;
+    const totalCount = connection?.totalCount ?? null;
+    const edges = connection?.edges || [];
+
+    for (const edge of edges) {
+      if (edge?.node) {
+        follows.push({
+          id: edge.node.id,
+          login: edge.node.login,
+          displayName: edge.node.displayName,
+          profileImageURL: edge.node.profileImageURL,
+          profileURL: edge.node.profileURL,
+          followedAt: edge.followedAt || null
         });
       }
-
-      targetUser = {
-        id: user.id,
-        login: user.login,
-        displayName: user.displayName
-      };
-
-      const connection = user.follows;
-      totalCount = connection?.totalCount ?? null;
-      const edges = connection?.edges || [];
-
-      for (const edge of edges) {
-        if (edge?.node) {
-          follows.push({
-            id: edge.node.id,
-            login: edge.node.login,
-            displayName: edge.node.displayName,
-            profileImageURL: edge.node.profileImageURL,
-            profileURL: edge.node.profileURL,
-            followedAt: edge.followedAt || null
-          });
-        }
-      }
-
-      // ChannelFollows' persisted operation uses the Twitch web client's
-      // limit/login/order variables. Do not send the old raw-query cursor
-      // variables to it.
     }
+
+    const targetUser = {
+      id: user.id,
+      login: user.login,
+      displayName: user.displayName
+    };
 
     return res.json({
       login: targetUser.login,

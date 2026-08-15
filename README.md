@@ -47,3 +47,9 @@ This version uses the discovered Twitch web operation:
 
 The operation is publicly documented in community examples of Twitch's GQL
 traffic. Twitch can rotate persisted-query hashes at any time.
+
+\n## v5 fix
+
+The persisted `ChannelFollows` operation is requested once per API call.
+The previous version accidentally reused the same page in a pagination loop,
+which caused requests to hang indefinitely.
