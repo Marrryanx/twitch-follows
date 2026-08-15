@@ -1,0 +1,82 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Twitch Following Viewer</title>
+<style>
+:root{color-scheme:dark;--bg:#0e0e10;--panel:#18181b;--panel2:#1f1f23;--text:#efeff1;--muted:#adadb8;--accent:#9147ff;--accent2:#772ce8;--border:#2b2b31}
+*{box-sizing:border-box}body{margin:0;background:radial-gradient(circle at 50% -10%,#251341 0,#0e0e10 42%);color:var(--text);font:15px system-ui,-apple-system,Segoe UI,sans-serif;min-height:100vh}
+main{width:min(1100px,calc(100% - 32px));margin:0 auto;padding:60px 0}
+.hero{text-align:center;margin-bottom:34px}.hero h1{font-size:42px;margin:0 0 10px}.hero p{color:var(--muted);margin:0}
+.search{display:flex;gap:10px;max-width:720px;margin:28px auto 18px}.search input{flex:1;background:var(--panel);border:1px solid var(--border);color:var(--text);padding:15px 17px;border-radius:8px;font-size:16px;outline:none}.search input:focus{border-color:var(--accent)}
+button{border:0;border-radius:8px;background:var(--accent);color:white;padding:0 24px;font-weight:700;font-size:15px;cursor:pointer}button:hover{background:var(--accent2)}button:disabled{opacity:.6;cursor:wait}
+.status{text-align:center;color:var(--muted);min-height:24px}.error{color:#ff6b81}
+.toolbar{display:flex;justify-content:space-between;align-items:center;margin:25px 0 12px;color:var(--muted)}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(245px,1fr));gap:12px}
+.card{display:flex;align-items:center;gap:13px;background:var(--panel);border:1px solid var(--border);padding:13px;border-radius:10px;text-decoration:none;color:inherit;transition:.15s}.card:hover{background:var(--panel2);border-color:#4c3a68;transform:translateY(-1px)}
+.avatar{width:58px;height:58px;border-radius:50%;object-fit:cover;background:#29292e}.name{font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.login{color:var(--muted);font-size:13px}.date{color:#888894;font-size:12px;margin-top:4px}
+@media(max-width:600px){main{padding-top:35px}.hero h1{font-size:31px}.search{flex-direction:column}.search button{height:48px}.grid{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<main>
+  <section class="hero">
+    <h1>Twitch Following Viewer</h1>
+    <p>Enter a Twitch username to view the channels they follow.</p>
+    <form class="search" id="form">
+      <input id="username" autocomplete="off" spellcheck="false" placeholder="Twitch username (e.g. ninja)">
+      <button id="submit">Search</button>
+    </form>
+    <div class="status" id="status"></div>
+  </section>
+  <section id="results" hidden>
+    <div class="toolbar">
+      <strong id="title"></strong>
+      <span id="count"></span>
+    </div>
+    <div class="grid" id="grid"></div>
+  </section>
+</main>
+<script>
+const form=document.querySelector("#form"), input=document.querySelector("#username"),
+button=document.querySelector("#submit"), status=document.querySelector("#status"),
+results=document.querySelector("#results"), title=document.querySelector("#title"),
+count=document.querySelector("#count"), grid=document.querySelector("#grid");
+
+function esc(s){return String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]))}
+function formatDate(s){if(!s)return "";const d=new Date(s);return Number.isNaN(d.getTime())?"":`Followed ${d.toLocaleDateString()}`}
+function render(data){
+  grid.innerHTML="";
+  data.follows.forEach(ch=>{
+    const a=document.createElement("a");
+    a.className="card"; a.target="_blank"; a.rel="noopener";
+    a.href=ch.profileURL || `https://twitch.tv/${encodeURIComponent(ch.login)}`;
+    a.innerHTML=`<img class="avatar" src="${esc(ch.profileImageURL||"")}" alt="">
+      <div style="min-width:0"><div class="name">${esc(ch.displayName)}</div>
+      <div class="login">@${esc(ch.login)}</div><div class="date">${esc(formatDate(ch.followedAt))}</div></div>`;
+    grid.appendChild(a);
+  });
+  title.textContent=`${data.displayName} follows`;
+  count.textContent=`${data.count} shown`;
+  results.hidden=false;
+}
+form.addEventListener("submit",async e=>{
+  e.preventDefault();
+  const username=input.value.trim().replace(/^@/,"");
+  if(!username)return;
+  button.disabled=true; status.className="status"; status.textContent="Loading…"; results.hidden=true;
+  try{
+    const r=await fetch(`/api/following?username=${encodeURIComponent(username)}&limit=1000`);
+    const raw=await r.text();
+    let data;
+    try { data=JSON.parse(raw); }
+    catch { throw new Error(`Server returned ${r.status}: ${raw.slice(0,120) || "empty response"}`); }
+    if(!r.ok)throw new Error(data.error||"Request failed");
+    render(data); status.textContent="";
+  }catch(err){status.className="status error";status.textContent=err.message}
+  finally{button.disabled=false}
+});
+</script>
+</body>
+</html>
