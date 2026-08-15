@@ -24,9 +24,11 @@ async function twitchGraphQL(body) {
       "Client-ID": TWITCH_CLIENT_ID,
       "Content-Type": "application/json",
       "Accept": "application/json",
-      "User-Agent": "Mozilla/5.0 TwitchFollowingViewer/1.0"
+      "Origin": "https://www.twitch.tv",
+      "Referer": "https://www.twitch.tv/",
+      "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36"
     },
-    body: JSON.stringify(body)
+    body: JSON.stringify(Array.isArray(body) ? body : [body])
   });
 
   const text = await response.text();
@@ -44,12 +46,15 @@ async function twitchGraphQL(body) {
     }`);
   }
 
-  if (json?.errors?.length) {
-    const messages = json.errors.map(e => e.message).join("; ");
+  // Twitch normally returns an array for batched/persisted GQL operations.
+  const payload = Array.isArray(json) ? json[0] : json;
+
+  if (payload?.errors?.length) {
+    const messages = payload.errors.map(e => e.message).join("; ");
     throw new Error(`Twitch GraphQL: ${messages}`);
   }
 
-  return json;
+  return payload;
 }
 
 async function getFollowing(req, res, usernameFromPath) {

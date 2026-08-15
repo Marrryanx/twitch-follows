@@ -53,3 +53,9 @@ traffic. Twitch can rotate persisted-query hashes at any time.
 The persisted `ChannelFollows` operation is requested once per API call.
 The previous version accidentally reused the same page in a pagination loop,
 which caused requests to hang indefinitely.
+
+\n## v6 fix
+
+Persisted Twitch GQL operations are sent in a JSON array envelope by the Twitch
+web client. This version sends the operation in that envelope and unwraps the
+first result, while also matching Twitch's browser Origin/Referer headers.
