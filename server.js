@@ -18,7 +18,7 @@ query UserFollows($login: String!, $first: Int!, $after: Cursor) {
     id
     login
     displayName
-    follows(first: $first, after: $after) {
+    follows(first: $first, after: $after, filter: ALL, order: DESC) {
       totalCount
       edges {
         cursor
@@ -75,19 +75,21 @@ async function twitchGraphQL(body) {
     throw new Error(`Twitch returned non-JSON (${response.status})`);
   }
 
-  // Twitch GQL can return HTTP 200 with GraphQL errors.
+  // Twitch GQL can return either an object or an array.
+  const payload = Array.isArray(json) ? json[0] : json;
+
   if (!response.ok) {
     throw new Error(`Twitch GraphQL HTTP ${response.status}: ${
-      json?.errors?.[0]?.message || text.slice(0, 300)
+      payload?.errors?.[0]?.message || text.slice(0, 300)
     }`);
   }
 
-  if (json?.errors?.length) {
-    const messages = json.errors.map(e => e.message).join("; ");
+  if (payload?.errors?.length) {
+    const messages = payload.errors.map(e => e.message).join("; ");
     throw new Error(`Twitch GraphQL: ${messages}`);
   }
 
-  return json;
+  return payload;
 }
 
 app.get("/api/following/:username", async (req, res) => {
