@@ -91,6 +91,8 @@ async function getFollowing(req, res, usernameFromPath) {
       }
     });
 
+    console.log("TWITCH RESULT:", JSON.stringify(result, null, 2));
+
     const user = result?.data?.user;
     if (!user) {
       return res.status(404).json({
